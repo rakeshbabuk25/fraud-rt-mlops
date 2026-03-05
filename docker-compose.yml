@@ -31,7 +31,7 @@ services:
       --host 0.0.0.0
       --port 5000
       --backend-store-uri sqlite:////mlflow/mlflow.db
-      --default-artifact-root /mlflow/artifacts
+      --default-artifact-root file:/mlflow/artifacts
       "
     volumes:
       - mlflowdata:/mlflow
@@ -49,11 +49,15 @@ services:
       DB_NAME: fraud_db
       DB_USER: fraud
       DB_PASSWORD: fraud
-      MODEL_NAME: baseline_rule
-      MODEL_VERSION: "0"
+      MODEL_NAME: fraud_lgbm
+      EXPORT_DIR: /export/latest
+      MODEL_STAGE_OR_VERSION: "1"
       THRESHOLD: "0.5"
     ports:
       - "8000:8000"
+    volumes:
+      - ./models:/models:ro
+      - mlflowdata:/mlflow:ro
 
   redpanda:
     image: redpandadata/redpanda:latest
@@ -104,8 +108,10 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MLFLOW_EXPERIMENT: fraud-training
       MODEL_NAME: fraud_lgbm
+      EXPORT_DIR: /export/latest
     volumes:
       - ./data:/data
+      - ./models:/export
 
 volumes:
   pgdata:
