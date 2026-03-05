@@ -36,6 +36,25 @@ services:
     volumes:
       - mlflowdata:/mlflow
 
+  fraud_api:
+    build:
+      context: ./src/serving
+    container_name: fraud_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fraud_db
+      DB_USER: fraud
+      DB_PASSWORD: fraud
+      MODEL_NAME: baseline_rule
+      MODEL_VERSION: "0"
+      THRESHOLD: "0.5"
+    ports:
+      - "8000:8000"
+
 volumes:
   pgdata:
   mlflowdata:
