@@ -1,0 +1,41 @@
+# ---- OS / Editor ----
+.DS_Store
+.vscode/
+.idea/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# ---- Virtual env ----
+.venv/
+venv/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Environment / Secrets ----
+.env
+.env.*
+
+# ---- Logs ----
+*.log
+
+# ---- ML artifacts / tracking ----
+mlruns/
+models/
+artifacts/
+*.pkl
+*.joblib
+*.onnx
+
+# ---- Data (keep raw datasets out of git) ----
+data/raw/
+data/interim/
+data/processed/
+*.csv
+*.parquet
