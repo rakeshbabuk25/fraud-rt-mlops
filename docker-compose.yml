@@ -55,6 +55,42 @@ services:
     ports:
       - "8000:8000"
 
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: fraud_redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --reserve-memory
+      - "0M"
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  stream_worker:
+    image: python:3.13-slim
+    container_name: fraud_stream_worker
+    depends_on:
+      redpanda:
+        condition: service_started
+      fraud_api:
+        condition: service_started
+    working_dir: /work
+    volumes:
+      - ./src/streaming:/work
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
+
 volumes:
   pgdata:
   mlflowdata:
