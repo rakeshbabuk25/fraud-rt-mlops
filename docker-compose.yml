@@ -91,6 +91,22 @@ services:
       - ./src/streaming:/work
     command: sh -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
 
+  trainer:
+    build:
+      context: ./src/training
+    container_name: fraud_trainer
+    depends_on:
+      mlflow:
+        condition: service_started
+    environment:
+      DATA_PATH: /data/creditcard.csv
+      TARGET_COL: Class
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT: fraud-training
+      MODEL_NAME: fraud_lgbm
+    volumes:
+      - ./data:/data
+
 volumes:
   pgdata:
   mlflowdata:
