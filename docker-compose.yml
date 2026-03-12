@@ -1,0 +1,142 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fraud_postgres
+    environment:
+      POSTGRES_USER: fraud
+      POSTGRES_PASSWORD: fraud
+      POSTGRES_DB: fraud_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fraud -d fraud_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.3
+    container_name: fraud_mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5001:5000"
+    command: >
+      sh -c "
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root file:/mlflow/artifacts
+      "
+    volumes:
+      - mlflowdata:/mlflow
+
+  fraud_api:
+    build:
+      context: ./src/serving
+    container_name: fraud_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fraud_db
+      DB_USER: fraud
+      DB_PASSWORD: fraud
+      MODEL_NAME: fraud_lgbm
+      EXPORT_DIR: /export/latest
+      MODEL_STAGE_OR_VERSION: "1"
+      THRESHOLD: "0.5"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/models:ro
+      - mlflowdata:/mlflow:ro
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: fraud_redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --reserve-memory
+      - "0M"
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  stream_worker:
+    image: python:3.13-slim
+    container_name: fraud_stream_worker
+    depends_on:
+      redpanda:
+        condition: service_started
+      fraud_api:
+        condition: service_started
+    working_dir: /work
+    volumes:
+      - ./src/streaming:/work
+    command: sh -c "pip install --no-cache-dir -r /work/requirements.txt && tail -f /dev/null"
+
+  trainer:
+    build:
+      context: ./src/training
+    container_name: fraud_trainer
+    depends_on:
+      mlflow:
+        condition: service_started
+    environment:
+      DATA_PATH: /data/creditcard.csv
+      TARGET_COL: Class
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT: fraud-training
+      MODEL_NAME: fraud_lgbm
+      EXPORT_DIR: /export/latest
+    volumes:
+      - ./data:/data
+      - ./models:/export
+
+  monitor:
+    image: docker:27-cli
+    container_name: fraud_monitor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fraud_api:
+        condition: service_started
+    working_dir: /repo
+    environment:
+      INTERVAL_SECONDS: "300"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: fraud_db
+      DB_USER: fraud
+      DB_PASSWORD: fraud
+      REPO_DIR: /repo
+      HOST_REPO_DIR: "/hostrepo"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/repo
+      - ./:/hostrepo
+    command: sh -c "apk add --no-cache python3 py3-pip bash && python3 -m venv /venv && . /venv/bin/activate && pip install --upgrade pip && pip install pandas==2.2.3 \"psycopg[binary]==3.2.13\" && cd /repo && ./src/monitoring/scheduler.sh"
+
+volumes:
+  pgdata:
+  mlflowdata:

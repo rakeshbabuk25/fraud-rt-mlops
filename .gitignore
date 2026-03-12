@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+logs/
+*.log
+.env
+.env.*
+export/
+models/latest/model.joblib
+models/latest/metadata.json
+
+data/creditcard.csv
