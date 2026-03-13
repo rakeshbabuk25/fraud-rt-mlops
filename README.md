@@ -51,7 +51,7 @@ flowchart LR
   MON[Monitoring Job<br/>KPI + PSI drift] --> PG
   MON -->|trigger retrain| TR
   TR -->|restart| API
-```
+
 ---
 
 Data & ML approach
