@@ -1,3 +1,8 @@
+Your error is because you never close the Mermaid code block. Everything after TR -->|restart| API is still inside the ```mermaid block, and Mermaid can’t parse ---, bullets, or normal prose.
+
+Also: you’re mixing tab bullets (\t•) and a weird divider (⸻) which is fine in Markdown, but must be outside Mermaid.
+
+Below is a fixed README (same content, but properly structured). Replace your README with this.
 
 # Fraud RT MLOps — Real-Time Fraud Detection with Drift-Aware Continuous Training
 
@@ -52,24 +57,25 @@ flowchart LR
   MON -->|trigger retrain| TR
   TR -->|restart| API
 
----
+
+⸻
 
 Data & ML approach
 
 Dataset
-	•	Training uses the well-known credit card fraud dataset (data/creditcard.csv) with features:
+	•	Training uses the credit card fraud dataset (data/creditcard.csv) with features:
 	•	Time, V1..V28, Amount
 	•	Target label: Class (fraud = 1, normal = 0)
 
 Model
-	•	LightGBM (gradient-boosted decision trees) trained for binary classification.
-	•	Handles class imbalance using scale_pos_weight = neg/pos.
+	•	LightGBM (gradient-boosted decision trees) for binary classification.
+	•	Handles class imbalance using: scale_pos_weight = neg/pos
 
 Thresholding
-	•	Model outputs P(fraud); a decision is produced via a configurable threshold.
+	•	Model outputs P(fraud); decision is produced via a configurable threshold.
 	•	Training selects a threshold from the validation PR curve, with guardrails:
 	•	MIN_THRESHOLD lower bound
-	•	optional FORCE_THRESHOLD override for stable demos
+	•	optional FORCE_THRESHOLD override (stable demos)
 
 Why these metrics
 	•	AUPRC (Average Precision) is preferred over AUROC for imbalanced fraud detection.
@@ -104,7 +110,7 @@ To avoid noisy retraining decisions on tiny label volume:
 	•	Monitoring enforces minimum joined label counts (e.g., MIN_JOINED, MIN_POS_LABELS)
 	•	If insufficient labels exist, the run is logged as:
 	•	INSUFFICIENT_LABELS(joined=...,pos=...)
-	•	and retraining is skipped
+	•	Retraining is skipped for that run.
 
 ⸻
 
@@ -141,20 +147,13 @@ You’ll usually use two terminals:
 	•	Terminal A (long-running): consumer tail/logs
 	•	Terminal B (commands): compose, producer, queries
 
-1) Start the stack
-
-Terminal B
+1) Start the stack (Terminal B)
 
 cd ~/Projects/fraud-rt-mlops
 docker compose up -d
-
-Verify API:
-
 curl -s http://localhost:8000/health | python3 -m json.tool
 
-2) Start the consumer (stream worker → API)
-
-Terminal A
+2) Start the consumer (Terminal A)
 
 docker exec -it fraud_stream_worker sh -lc '
 rm -f /work/consumer.log /work/consumer.pid
@@ -165,9 +164,7 @@ echo $! > /work/consumer.pid
 tail -f /work/consumer.log
 '
 
-3) Send transactions
-
-Terminal B
+3) Send transactions (Terminal B)
 
 docker exec -it fraud_stream_worker sh -lc "KAFKA_BROKER=redpanda:9092 python /work/producer.py"
 
@@ -179,9 +176,7 @@ docker exec -it fraud_postgres psql -U fraud -d fraud_db -c \
  WHERE transaction_id LIKE 'tx_%'
    AND created_at > now() - interval '2 minutes';"
 
-4) Run monitoring once (manual)
-
-Terminal B
+4) Run monitoring once (manual) (Terminal B)
 
 . .venv/bin/activate
 python3 src/monitoring/write_metrics.py
@@ -201,7 +196,7 @@ Automated monitoring & retraining (macOS launchd)
 
 A host-scheduled job periodically:
 	1.	Runs write_metrics.py
-	2.	If should_retrain = true, it runs the trainer container
+	2.	If should_retrain = true, runs the trainer container
 	3.	Restarts fraud_api to load the latest model artifacts
 
 Logs:
@@ -211,34 +206,35 @@ Logs:
 ⸻
 
 How to present
-
-1) Problem framing
+	1.	Problem framing
 Fraud detection is streaming + imbalanced + drifting. A model is only useful if:
+
 	•	it can score in real time
 	•	it is monitored continuously
 	•	it can be refreshed safely when performance degrades
 
-2) Pipeline
+	2.	Pipeline
 Show the architecture diagram and walk through:
+
 	•	Redpanda topic → consumer → FastAPI /score
 	•	predictions logged with model_version
 	•	outcomes enable supervised KPI computation
 	•	monitoring produces a decision
 	•	retraining exports a new model and API reloads it
 
-3) Model & evaluation
-Explain:
-	•	LightGBM is strong for tabular data
-	•	AUPRC and recall are appropriate for class imbalance
-	•	threshold controls the fraud review rate
+	3.	Model & evaluation
 
-4) Drift
-Explain PSI as a production-friendly signal:
-	•	even if labels arrive late, distribution shift can be detected early
+	•	LightGBM works well for tabular data
+	•	AUPRC and recall fit class imbalance
+	•	threshold controls fraud review rate
 
-5) Operational safety
-Mention:
-	•	minimum label guardrails to avoid retraining on noise
+	4.	Drift
+
+	•	PSI provides an early warning signal even when labels arrive late
+
+	5.	Operational safety
+
+	•	minimum label guardrails avoid retraining on noise
 	•	model versioning ensures auditability
 
 ⸻
@@ -246,7 +242,7 @@ Mention:
 Notes / known limitations (honest engineering)
 	•	Synthetic streaming data is for demonstration; production would use real feature pipelines.
 	•	Label availability is a real-world bottleneck; guardrails are implemented to avoid noisy triggers.
-	•	MLflow is included for experiment tracking; serving is done via local exported artifacts for simplicity.
+	•	MLflow is included for experiment tracking; serving uses locally exported artifacts for simplicity.
 
 ⸻
 
@@ -254,13 +250,10 @@ License
 
 MIT (or replace with your preferred license).
 
-### Command 4 (Host terminal — still in nano)
-Save and exit:
+### What I changed (so GitHub stops erroring)
+- Added the missing closing fence: **```** right after the Mermaid diagram.
+- Moved `---` and all prose **outside** Mermaid.
+- Converted the weird separators (`⸻`) + tab bullets into normal Markdown headings and lists.
+- Wrapped command snippets in proper `bash` code blocks.
 
-1) Press **Ctrl + O** (write out)  
-2) Press **Enter**  
-3) Press **Ctrl + X**
-
-After you exit nano, paste the output of:
-
-- `ls -lah README.md`
+If you want, paste your current `README.md` file path and I’ll give you a single `cat > README.md <<'EOF' ... EOF` command to overwrite it cleanly in one shot.
