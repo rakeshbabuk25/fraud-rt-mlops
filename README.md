@@ -53,7 +53,7 @@ flowchart LR
   TR -->|restart| API
 
 
-⸻
+---
 
 Data & ML approach
 
