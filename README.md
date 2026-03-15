@@ -3,7 +3,7 @@
 
 Production-style, end-to-end **real-time fraud detection** system demonstrating **streaming inference**, **audit-grade logging**, **monitoring + drift checks**, and **automated retraining + redeploy** using an MLOps workflow.
 
-This project is designed to be demoed live (to a tutor/professor) and to read like a professional engineering repo.
+
 
 ---
 
